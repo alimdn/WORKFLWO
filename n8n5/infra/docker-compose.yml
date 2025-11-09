@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15
+    container_name: ecommerce-db
+    restart: always
+    environment:
+      POSTGRES_DB: ecommerce_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - ecommerce-network
+
+  # Backend API
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: ecommerce-backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/ecommerce_db
+      - JWT_SECRET=your_jwt_secret_here
+      - JWT_REFRESH_SECRET=your_jwt_refresh_secret_here
+      - STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
+      - STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+      - STRIPE_WEBHOOK_SECRET=whsec_your_stripe_webhook_secret
+      - PAYPAL_CLIENT_ID=your_paypal_client_id
+      - PAYPAL_CLIENT_SECRET=your_paypal_client_secret
+      - PAYPAL_MODE=sandbox
+      - SMTP_HOST=smtp.example.com
+      - SMTP_PORT=587
+      - SMTP_SECURE=false
+      - SMTP_USER=your_email@example.com
+      - SMTP_PASS=your_email_password
+      - SMTP_FROM=your_email@example.com
+      - FRONTEND_URL=http://localhost:3000
+      - CORS_ORIGIN=http://localhost:3000
+    ports:
+      - "3001:3001"
+    depends_on:
+      - db
+    networks:
+      - ecommerce-network
+
+  # Frontend Application
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: ecommerce-frontend
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - API_BASE_URL=http://backend:3001/api
+      - STRIPE_PUBLISHABLE_KEY=pk_test_your_stripe_publishable_key
+      - PAYPAL_CLIENT_ID=your_paypal_client_id
+    depends_on:
+      - backend
+    networks:
+      - ecommerce-network
+
+volumes:
+  db_data:
+
+networks:
+  ecommerce-network:
+    driver: bridge
